@@ -5,16 +5,26 @@ from config import USER_SERVICE_URL, ITEMS_SERVICE_URL, AUTH_SERVICE_URL
 
 router = APIRouter()
 
-async def forward(request: Request, target_url: str):
+async def forward(request: Request, target_url: str, retries=3):
     async with httpx.AsyncClient() as client:
         body  = await request.body()
         headers = dict(request.headers)
 
-        response = await client.request(
-            request.method, target_url+ request.url.path, params=request.query_params,
-            content=body, headers=headers
-        )
-        return response
+        for attempt in range(retries+ 1):
+            try :
+                response = await client.request(
+                    request.method,
+                    target_url+ request.url.path,
+                    params=request.query_params,
+                    content=body,
+                    headers=headers,
+                    timeout=3.0
+                )
+                return response
+            except Exception:
+                if attempt == retries:
+                    raise e
+
 
 @router.api_route("/users/{path:path}", methods=["GET", "PUT", "POST", "DELETE"])
 async def users_proxy(path: str, request: Request):
